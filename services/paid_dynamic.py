@@ -73,18 +73,26 @@ def search(
         title = it.get("title") or query
         year = it.get("original_release_year") or None
         full_path = it.get("full_path")
+        runtime = it.get("runtime")
 
         offers = it.get("offers")
-        if offers is None:
+        details = None
+        if offers is None or runtime is None:
             try:
                 details = jw.get_title(content_type="movie", title_id=it.get("id"), language="fr")
-                offers = details.get("offers", [])
+                offers = details.get("offers", []) if offers is None else offers
                 full_path = details.get("full_path", full_path)
+                if runtime is None:
+                    runtime = details.get("runtime")
             except requests.HTTPError as err:
                 logger.exception("JustWatch HTTP error during title fetch: %s", err)
                 return []
             except Exception:
-                offers = []
+                offers = offers or []
+
+        duration = None
+        if isinstance(runtime, int) and runtime > 0:
+            duration = runtime if runtime < 300 else runtime // 60
 
         allowed = {"buy", "rent"} | ({"flatrate"} if include_subscriptions else set())
         offers = [
@@ -113,6 +121,7 @@ def search(
             out.append(Movie(
                 title=title,
                 year=year,
+                duration_minutes=duration,
                 description=f"Disponible sur {prov_name} – {mono}",
                 stream_url=url,
                 source=f"{prov_name} ({mono})",

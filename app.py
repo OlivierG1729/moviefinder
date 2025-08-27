@@ -191,6 +191,8 @@ def _card(movie, auto_translate: bool):
         meta = []
         if movie.year:
             meta.append(str(movie.year))
+        if movie.duration_minutes:
+            meta.append(f"{movie.duration_minutes} min")
         meta.append(movie.source)
         st.caption(" · ".join([x for x in meta if x]))
 

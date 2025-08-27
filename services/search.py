@@ -57,8 +57,11 @@ def run_search(
                 lst = fut.result()
                 if enrich_tmdb and key != "paid":
                     for m in lst:
+                        poster, runtime = tmdb.info_for(m.title, m.year)
                         if not m.poster_url:
-                            m.poster_url = tmdb.poster_for(m.title, m.year)
+                            m.poster_url = poster
+                        if runtime and not m.duration_minutes:
+                            m.duration_minutes = runtime
                 results[key] = lst
             except Exception:
                 results[key] = []
