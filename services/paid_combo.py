@@ -12,9 +12,19 @@ from .models import Movie
 from . import paid_dynamic
 
 
-def search(query: str, max_results: int = 20, country: str = "FR") -> List[Movie]:
+def search(
+    query: str,
+    max_results: int = 20,
+    country: str = "FR",
+    include_subscriptions: bool = False,
+) -> List[Movie]:
     """Return paid offers from the dynamic provider only."""
-    dyn = paid_dynamic.search(query, max_results=max_results, country=country)
+    dyn = paid_dynamic.search(
+        query,
+        max_results=max_results,
+        country=country,
+        include_subscriptions=include_subscriptions,
+    )
     if dyn:
         return dyn[:max_results]
     return []

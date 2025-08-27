@@ -28,6 +28,7 @@ def run_search(
     enrich_tmdb: bool = True,
     mode: str = "films",
     country: str = "FR",   # pays fixé ici
+    include_subscriptions: bool = False,
 ) -> Dict[str, List[Movie]]:
     order = order or DEFAULT_ORDER
     results: Dict[str, List[Movie]] = {}
@@ -46,7 +47,7 @@ def run_search(
             if k == "archive":
                 futures[ex.submit(PROVIDERS[k], query, max_results, mode)] = k
             elif k == "paid":
-                futures[ex.submit(PROVIDERS[k], query, max_results, country)] = k
+                futures[ex.submit(PROVIDERS[k], query, max_results, country, include_subscriptions)] = k
             else:
                 futures[ex.submit(PROVIDERS[k], query, max_results)] = k
 
