@@ -268,7 +268,7 @@ if st.session_state.loaded and st.session_state.results_data:
         else:
             st.caption("Aucune plateforme payante confirmée (achat/location) pour ce titre en FR via JustWatch.")
             # ✅ Mode hybride : l’utilisateur peut choisir d’afficher des liens de recherche génériques
-            with st.expander("Afficher aussi des liens de recherche génériques (Apple TV, Prime Video, YouTube VOD, etc.)"):
+            with st.expander("Afficher aussi des liens de recherche génériques (JustWatch, YouTube VOD)"):
                 if current_params["query"]:
                     fallbacks = paid_static.search(current_params["query"], max_results=6, country="FR")
                     for m in fallbacks:
