@@ -13,6 +13,7 @@ from typing import Optional, Dict
 class Movie:
     title: str
     year: Optional[int] = None
+    duration_minutes: Optional[int] = None
     description: Optional[str] = None
     poster_url: Optional[str] = None
     stream_url: Optional[str] = None

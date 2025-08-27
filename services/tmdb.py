@@ -7,14 +7,14 @@
 
 import streamlit as st
 import requests
-from typing import Optional
+from typing import Optional, Tuple
 
 IMG = "https://image.tmdb.org/t/p/w342"
 
-def poster_for(title: str, year: Optional[int] = None) -> Optional[str]:
+def info_for(title: str, year: Optional[int] = None) -> Tuple[Optional[str], Optional[int]]:
     api_key = st.secrets.get("TMDB_API_KEY")
     if not api_key:
-        return None
+        return None, None
     params = {"api_key": api_key, "query": title}
     if year:
         params["year"] = year
@@ -26,8 +26,26 @@ def poster_for(title: str, year: Optional[int] = None) -> Optional[str]:
         ).json()
         res = data.get("results", [])
         if not res:
-            return None
-        p = res[0].get("poster_path")
-        return f"{IMG}{p}" if p else None
+            return None, None
+        first = res[0]
+        p = first.get("poster_path")
+        poster = f"{IMG}{p}" if p else None
+        movie_id = first.get("id")
+        runtime = None
+        if movie_id:
+            try:
+                details = requests.get(
+                    f"https://api.themoviedb.org/3/movie/{movie_id}",
+                    params={"api_key": api_key},
+                    timeout=20,
+                ).json()
+                runtime = details.get("runtime")
+            except Exception:
+                runtime = None
+        return poster, runtime
     except Exception:
-        return None
+        return None, None
+
+def poster_for(title: str, year: Optional[int] = None) -> Optional[str]:
+    poster, _ = info_for(title, year)
+    return poster
