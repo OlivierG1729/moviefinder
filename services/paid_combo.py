@@ -6,10 +6,15 @@
 ############################
 
 
-# services/paid_combo.py
 from typing import List
 from .models import Movie
-from . import paid_dynamic
+from . import (
+    paid_dynamic,
+    paid_itunes,
+    paid_google_play,
+    paid_amazon,
+    paid_rakuten,
+)
 
 
 def search(
@@ -18,13 +23,35 @@ def search(
     country: str = "FR",
     include_subscriptions: bool = False,
 ) -> List[Movie]:
-    """Return paid offers from the dynamic provider only."""
-    dyn = paid_dynamic.search(
-        query,
-        max_results=max_results,
-        country=country,
-        include_subscriptions=include_subscriptions,
+    """Aggregate paid offers from various providers.
+
+    The dynamic provider (JustWatch) is queried first, then direct
+    store lookups such as iTunes, Google Play, Amazon/Prime Video and
+    Rakuten. Results are deduplicated based on their URL.
+    """
+
+    offers: List[Movie] = []
+    seen_urls = set()
+
+    def add(items: List[Movie]) -> None:
+        for it in items:
+            url = it.stream_url
+            if url and url not in seen_urls:
+                offers.append(it)
+                seen_urls.add(url)
+
+    add(
+        paid_dynamic.search(
+            query,
+            max_results=max_results,
+            country=country,
+            include_subscriptions=include_subscriptions,
+        )
     )
-    if dyn:
-        return dyn[:max_results]
-    return []
+
+    add(paid_itunes.search(query, max_results=max_results, country=country))
+    add(paid_google_play.search(query, country=country))
+    add(paid_amazon.search(query, country=country))
+    add(paid_rakuten.search(query, country=country))
+
+    return offers[:max_results]
