@@ -71,7 +71,11 @@ def search(query: str, max_results: int = 20, country: str = "FR") -> List[Movie
             except Exception:
                 offers = []
 
-        offers = [o for o in (offers or []) if o.get("country") == country]
+        offers = [
+            o
+            for o in (offers or [])
+            if o.get("country") == country and o.get("monetization_type") in {"buy", "rent"}
+        ]
         if not offers:
             continue
 
@@ -95,7 +99,7 @@ def search(query: str, max_results: int = 20, country: str = "FR") -> List[Movie
                 year=year,
                 description=f"Disponible sur {prov_name} – {mono}",
                 stream_url=url,
-                source=f"{prov_name} (payant)",
+                source=f"{prov_name} ({mono})",
                 extra={"monetization": mono, "provider_id": pid},
             ))
             if len(out) >= max_results:
