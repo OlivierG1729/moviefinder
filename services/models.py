@@ -18,5 +18,6 @@ class Movie:
     poster_url: Optional[str] = None
     stream_url: Optional[str] = None
     download_url: Optional[str] = None
+    price: Optional[str] = None
     source: str = ""
     extra: Optional[Dict] = None

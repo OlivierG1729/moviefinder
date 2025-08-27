@@ -20,6 +20,19 @@ logger = logging.getLogger(__name__)
 
 MONETIZATION_PRIORITIES = ["buy", "rent", "flatrate", "ads", "free"]
 
+_CURRENCY_SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£"}
+
+
+def _format_price(amount: Optional[float], currency: Optional[str]) -> Optional[str]:
+    if amount is None or currency is None:
+        return None
+    try:
+        value = f"{float(amount):.2f}".replace(".", ",")
+    except Exception:
+        return None
+    symbol = _CURRENCY_SYMBOLS.get(currency.upper(), currency)
+    return f"{value} {symbol}"
+
 def _best_offer_per_provider(offers: List[Dict]) -> Dict[int, Dict]:
     by_provider: Dict[int, Dict] = {}
     for off in offers or []:
@@ -112,6 +125,7 @@ def search(
         for pid, off in best.items():
             prov_name = providers_map.get(pid, f"Plateforme {pid}")
             mono = _label_monetization(off.get("monetization_type"))
+            price = _format_price(off.get("retail_price"), off.get("currency"))
             urls = off.get("urls") or {}
             url = urls.get("standard_web") or off.get("standard_web_url") or justwatch_title_url
             if not url or url in used_urls:
@@ -124,7 +138,8 @@ def search(
                 duration_minutes=duration,
                 description=f"Disponible sur {prov_name} – {mono}",
                 stream_url=url,
-                source=f"{prov_name} ({mono})",
+                price=price,
+                source=prov_name,
                 extra={"monetization": mono, "provider_id": pid},
             ))
             if len(out) >= max_results:

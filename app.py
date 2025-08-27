@@ -193,7 +193,13 @@ def _card(movie, auto_translate: bool):
             meta.append(str(movie.year))
         if movie.duration_minutes:
             meta.append(f"{movie.duration_minutes} min")
-        meta.append(movie.source)
+        if movie.source:
+            meta.append(movie.source)
+        if getattr(movie, "price", None):
+            mono = None
+            if isinstance(movie.extra, dict):
+                mono = movie.extra.get("monetization")
+            meta.append(f"{movie.price} {mono}".strip() if mono else movie.price)
         st.caption(" · ".join([x for x in meta if x]))
 
         # Description + traduction
