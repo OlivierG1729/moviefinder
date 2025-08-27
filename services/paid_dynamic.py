@@ -8,11 +8,15 @@
 
 from typing import List, Dict, Optional, Set
 from .models import Movie
+import logging
+import requests
 
 try:
     from justwatch import JustWatch
 except Exception:
     JustWatch = None
+
+logger = logging.getLogger(__name__)
 
 MONETIZATION_PRIORITIES = ["buy", "rent", "flatrate", "ads", "free"]
 
@@ -42,9 +46,12 @@ def search(query: str, max_results: int = 20, country: str = "FR") -> List[Movie
     if not JustWatch:
         return []
 
-    jw = JustWatch(country=country)
+    jw = JustWatch(country=country, api_domain="https://apis.justwatch.com")
     try:
         data = jw.search_for_item(query=query, content_types=["movie"])
+    except requests.exceptions.HTTPError as err:
+        logger.error("JustWatch HTTP error: %s", err)
+        return []
     except Exception:
         return []
 
