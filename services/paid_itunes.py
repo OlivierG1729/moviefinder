@@ -5,8 +5,21 @@
 ############################
 
 import requests
-from typing import List
+from typing import List, Optional
 from .models import Movie
+
+_CURRENCY_SYMBOLS = {"EUR": "€", "USD": "$", "GBP": "£"}
+
+
+def _format_price(amount: Optional[float], currency: Optional[str]) -> Optional[str]:
+    if amount is None or currency is None:
+        return None
+    try:
+        value = f"{float(amount):.2f}".replace(".", ",")
+    except Exception:
+        return None
+    symbol = _CURRENCY_SYMBOLS.get(currency.upper(), currency)
+    return f"{value} {symbol}"
 
 
 def search(query: str, max_results: int = 20, country: str = "FR") -> List[Movie]:
@@ -47,6 +60,14 @@ def search(query: str, max_results: int = 20, country: str = "FR") -> List[Movie
                 year = int(rel[:4])
             except ValueError:
                 pass
+
+        price = _format_price(it.get("trackRentalPrice") or it.get("trackPrice"), it.get("currency"))
+        mono = None
+        if it.get("trackRentalPrice") is not None:
+            mono = "location"
+        elif it.get("trackPrice") is not None:
+            mono = "achat"
+
         out.append(
             Movie(
                 title=title,
@@ -54,7 +75,9 @@ def search(query: str, max_results: int = 20, country: str = "FR") -> List[Movie
                 description=description,
                 poster_url=poster,
                 stream_url=stream_url,
+                price=price,
                 source="Apple iTunes",
+                extra={"monetization": mono} if mono else None,
             )
         )
         if len(out) >= max_results:
