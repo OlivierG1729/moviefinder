@@ -42,7 +42,12 @@ def _best_offer_per_provider(offers: List[Dict]) -> Dict[int, Dict]:
 def _label_monetization(m: Optional[str]) -> str:
     return {"buy":"achat","rent":"location","flatrate":"abonnement","ads":"avec pub","free":"gratuit"}.get((m or "").lower(), m or "")
 
-def search(query: str, max_results: int = 20, country: str = "FR") -> List[Movie]:
+def search(
+    query: str,
+    max_results: int = 20,
+    country: str = "FR",
+    include_subscriptions: bool = False,
+) -> List[Movie]:
     if not JustWatch:
         return []
 
@@ -78,10 +83,11 @@ def search(query: str, max_results: int = 20, country: str = "FR") -> List[Movie
             except Exception:
                 offers = []
 
+        allowed = {"buy", "rent"} | ({"flatrate"} if include_subscriptions else set())
         offers = [
             o
             for o in (offers or [])
-            if o.get("country") == country and o.get("monetization_type") in {"buy", "rent"}
+            if o.get("country") == country and o.get("monetization_type") in allowed
         ]
         if not offers:
             continue

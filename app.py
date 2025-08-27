@@ -71,6 +71,7 @@ with st.sidebar:
         help="L'ordre définit aussi la priorité d'affichage",
         key="providers_sel",   # ← clé explicite
     )
+    include_sub = st.checkbox("Inclure les offres d'abonnement", value=False)
     auto_translate = st.checkbox("Traduire automatiquement les résumés en français", value=True)
     st.caption("Définissez YOUTUBE_API_KEY / TMDB_API_KEY dans les secrets Streamlit (Cloud) ou .streamlit/secrets.toml (local).")
 
@@ -78,8 +79,15 @@ with st.sidebar:
 # Cache
 # ──────────────────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False, ttl=600)
-def cached_search(q: str, order: tuple[str, ...], enrich: bool, mode: str):
-    return run_search(q, max_results=50, order=list(order), enrich_tmdb=enrich, mode=mode)
+def cached_search(q: str, order: tuple[str, ...], enrich: bool, mode: str, include_sub: bool):
+    return run_search(
+        q,
+        max_results=50,
+        order=list(order),
+        enrich_tmdb=enrich,
+        mode=mode,
+        include_subscriptions=include_sub,
+    )
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Bouton Rechercher seulement quand la requête change
@@ -89,6 +97,7 @@ current_params = {
     "providers": tuple(st.session_state.get("providers_sel", DEFAULT_ORDER)),  # ← lit la valeur du multiselect
     "enrich_tmdb": bool(enrich_tmdb),
     "mode": mode,
+    "include_sub": bool(include_sub),
 }
 
 query_changed = current_params["query"] != st.session_state.last_query_text
@@ -96,7 +105,8 @@ non_query_changed = (
     st.session_state.loaded and
     (current_params["providers"] != tuple(st.session_state.loaded_params.get("providers", ())) or
      current_params["enrich_tmdb"] != st.session_state.loaded_params.get("enrich_tmdb") or
-     current_params["mode"] != st.session_state.loaded_params.get("mode"))
+     current_params["mode"] != st.session_state.loaded_params.get("mode") or
+     current_params["include_sub"] != st.session_state.loaded_params.get("include_sub"))
 )
 
 col_btn, col_info = st.columns([1, 3])
@@ -120,7 +130,8 @@ if should_run_now:
             current_params["query"],
             current_params["providers"],
             current_params["enrich_tmdb"],
-            current_params["mode"]
+            current_params["mode"],
+            current_params["include_sub"],
         )
     st.session_state.results_data = data
     st.session_state.loaded = True
@@ -128,6 +139,7 @@ if should_run_now:
         "providers": current_params["providers"],
         "enrich_tmdb": current_params["enrich_tmdb"],
         "mode": current_params["mode"],
+        "include_sub": current_params["include_sub"],
     }
     if do_search or not st.session_state.last_query_text:
         st.session_state.page_free = 1
