@@ -8,8 +8,10 @@
 from typing import Dict, List
 from concurrent.futures import ThreadPoolExecutor
 from .models import Movie
-from . import archive_org, youtube_free, paid_links
-from . import tmdb
+from . import archive_org, youtube_free, tmdb
+from . import paid_combo as paid_links   # ⬅️ combo dynamique + fallback
+
+
 
 PROVIDERS = {
     "archive": archive_org.search,
@@ -18,33 +20,33 @@ PROVIDERS = {
 }
 DEFAULT_ORDER = ["archive", "youtube", "paid"]
 
+
 def run_search(
     query: str,
     max_results: int = 20,
     order: List[str] | None = None,
     enrich_tmdb: bool = True,
-    mode: str = "films",  # 'films' | 'autres' | 'tout'
+    mode: str = "films",
+    country: str = "FR",   # pays fixé ici
 ) -> Dict[str, List[Movie]]:
     order = order or DEFAULT_ORDER
     results: Dict[str, List[Movie]] = {}
 
-    # Construction de la liste de providers actifs selon le mode
     active = []
     for key in order:
         if key not in PROVIDERS:
             continue
         if mode == "autres" and key in ("youtube", "paid"):
-            # “Autres” = on exclut YouTube (orienté films) et payant
             continue
         active.append(key)
 
-    # Requêtes en parallèle
     with ThreadPoolExecutor(max_workers=min(8, len(active))) as ex:
         futures = {}
         for k in active:
             if k == "archive":
-                # Passer le mode au provider Archive.org pour filtrage par mediatype
                 futures[ex.submit(PROVIDERS[k], query, max_results, mode)] = k
+            elif k == "paid":
+                futures[ex.submit(PROVIDERS[k], query, max_results, country)] = k
             else:
                 futures[ex.submit(PROVIDERS[k], query, max_results)] = k
 

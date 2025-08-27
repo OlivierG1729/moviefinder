@@ -2,3 +2,4 @@ streamlit
 requests
 langdetect
 deep-translator
+justatch

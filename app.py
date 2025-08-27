@@ -4,25 +4,36 @@
 # Last update : 2025/08/25 #
 ############################
 
+############################
+# User interface           #
+#                          #
+# Last update : 2025/08/27 #
+############################
+
 import math
 import streamlit as st
 from services.search import run_search, DEFAULT_ORDER
 from services.i18n import detect_lang, translate_to_fr, lang_badge_html
+from services import paid_static
 
+# ──────────────────────────────────────────────────────────────────────────────
 # Config
-st.set_page_config(page_title="🎬 Films – Agrégateur légal", page_icon="🎬", layout="wide")
+# ──────────────────────────────────────────────────────────────────────────────
+st.set_page_config(page_title="🎬 Movie Finder : agrégateur légal de films", page_icon="🎬", layout="wide")
 st.title("🎬 Movie Finder : agrégateur légal de films")
 st.write("""
 Cette application agrège **uniquement** des sources *légales* :
 - priorité aux contenus **gratuits** (ex. Archive.org).
-- en 2d choix : **liens officiels payants** (redirection).
+- en 2ᵉ choix : **liens officiels payants** (redirection).
 - **aucun contournement** de protection ; **téléchargement** seulement si permis par la source.
 
 **Téléchargement & emplacement :** le bouton *Télécharger* ouvre la page du fournisseur ;
 votre **navigateur** vous proposera l’emplacement sur **votre disque**.
 """)
 
+# ──────────────────────────────────────────────────────────────────────────────
 # Session state
+# ──────────────────────────────────────────────────────────────────────────────
 if "page_free" not in st.session_state:
     st.session_state.page_free = 1
 if "loaded" not in st.session_state:
@@ -34,7 +45,9 @@ if "results_data" not in st.session_state:
 if "last_query_text" not in st.session_state:
     st.session_state.last_query_text = ""
 
+# ──────────────────────────────────────────────────────────────────────────────
 # Widgets
+# ──────────────────────────────────────────────────────────────────────────────
 query = st.text_input("Rechercher un film…", placeholder="ex: Nosferatu, Buster Keaton, western muet", key="query")
 
 mode_label = st.radio(
@@ -56,19 +69,24 @@ with st.sidebar:
         DEFAULT_ORDER,
         default=DEFAULT_ORDER,
         help="L'ordre définit aussi la priorité d'affichage",
+        key="providers_sel",   # ← clé explicite
     )
     auto_translate = st.checkbox("Traduire automatiquement les résumés en français", value=True)
     st.caption("Définissez YOUTUBE_API_KEY / TMDB_API_KEY dans les secrets Streamlit (Cloud) ou .streamlit/secrets.toml (local).")
 
+# ──────────────────────────────────────────────────────────────────────────────
 # Cache
+# ──────────────────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False, ttl=600)
 def cached_search(q: str, order: tuple[str, ...], enrich: bool, mode: str):
     return run_search(q, max_results=50, order=list(order), enrich_tmdb=enrich, mode=mode)
 
+# ──────────────────────────────────────────────────────────────────────────────
 # Bouton Rechercher seulement quand la requête change
+# ──────────────────────────────────────────────────────────────────────────────
 current_params = {
     "query": (query or "").strip(),
-    "providers": tuple(providers),
+    "providers": tuple(st.session_state.get("providers_sel", DEFAULT_ORDER)),  # ← lit la valeur du multiselect
     "enrich_tmdb": bool(enrich_tmdb),
     "mode": mode,
 }
@@ -98,7 +116,12 @@ should_run_now = (
 
 if should_run_now:
     with st.spinner("Recherche en cours…"):
-        data = cached_search(current_params["query"], current_params["providers"], current_params["enrich_tmdb"], current_params["mode"])
+        data = cached_search(
+            current_params["query"],
+            current_params["providers"],
+            current_params["enrich_tmdb"],
+            current_params["mode"]
+        )
     st.session_state.results_data = data
     st.session_state.loaded = True
     st.session_state.loaded_params = {
@@ -110,7 +133,9 @@ if should_run_now:
         st.session_state.page_free = 1
         st.session_state.last_query_text = current_params["query"]
 
+# ──────────────────────────────────────────────────────────────────────────────
 # Helpers
+# ──────────────────────────────────────────────────────────────────────────────
 def _unpack_translate(res):
     """
     Accepte (str) | (txt, ok) | (txt, ok, lang) | (txt, ok, lang, …)
@@ -202,7 +227,9 @@ def _paginate(items, page, per_page):
     end = start + per_page
     return items[start:end], page, total_pages, total
 
+# ──────────────────────────────────────────────────────────────────────────────
 # Affichage des résultats
+# ──────────────────────────────────────────────────────────────────────────────
 if st.session_state.loaded and st.session_state.results_data:
     free_keys = [k for k in current_params["providers"] if k != "paid"]
     free_all = []
@@ -230,9 +257,49 @@ if st.session_state.loaded and st.session_state.results_data:
         for m in page_items:
             _card(m, auto_translate)
 
+    # ——— Section payante (après la partie “Résultats – Gratuit”) ———
     if "paid" in current_params["providers"] and current_params["mode"] != "autres":
-        st.subheader("Pistes – Payant (liens externes)")
-        for m in st.session_state.results_data.get("paid", []):
-            _card(m, auto_translate)
+        st.subheader("Pistes – Payant (achat/location confirmés)")
+        paid_list = st.session_state.results_data.get("paid", []) or []
+
+        if paid_list:
+            for m in paid_list:
+                _card(m, auto_translate)
+        else:
+            st.caption("Aucune plateforme payante confirmée (achat/location) pour ce titre en FR via JustWatch.")
+            # ✅ Mode hybride : l’utilisateur peut choisir d’afficher des liens de recherche génériques
+            with st.expander("Afficher aussi des liens de recherche génériques (Apple TV, Prime Video, YouTube VOD, etc.)"):
+                if current_params["query"]:
+                    fallbacks = paid_static.search(current_params["query"], max_results=6, country="FR")
+                    for m in fallbacks:
+                        cols = st.columns([3, 1])
+                        with cols[0]:
+                            st.markdown(f"**{m.title}**")
+                            st.caption(m.description)
+                        with cols[1]:
+                            st.link_button("Ouvrir", m.stream_url, use_container_width=True)
+                else:
+                    st.info("Saisissez une requête pour voir des liens de recherche génériques.")
+
 else:
     st.info("Entrez une requête puis cliquez sur **Rechercher** pour lancer la première recherche.")
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Bouton reset (réinitialise les options UI)
+# ──────────────────────────────────────────────────────────────────────────────
+if st.sidebar.button("Réinitialiser options"):
+    st.session_state.pop("providers_sel", None)  # vide le multiselect
+    st.session_state.page_free = 1
+    st.rerun()
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Debug temporaire (sécurisé)
+# ──────────────────────────────────────────────────────────────────────────────
+with st.expander("🔧 Debug (temporaire)"):
+    res = st.session_state.results_data or {}
+    st.write("Providers actifs:", current_params["providers"])
+    st.write("Mode:", current_params["mode"])
+    st.write("Clés résultats:", list(res.keys()))
+    st.write("Nb options payantes:", len(res.get("paid", [])))
+
+
