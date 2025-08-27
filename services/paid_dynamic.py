@@ -54,8 +54,8 @@ def search(
     jw = JustWatch(country=country, api_domain="https://apiv2.justwatch.com")
     try:
         data = jw.search_for_item(query=query, content_types=["movie"])
-    except requests.exceptions.HTTPError as err:
-        logger.error("JustWatch HTTP error: %s", err)
+    except requests.HTTPError as err:
+        logger.exception("JustWatch HTTP error during search: %s", err)
         return []
     except Exception:
         return []
@@ -80,6 +80,9 @@ def search(
                 details = jw.get_title(content_type="movie", title_id=it.get("id"), language="fr")
                 offers = details.get("offers", [])
                 full_path = details.get("full_path", full_path)
+            except requests.HTTPError as err:
+                logger.exception("JustWatch HTTP error during title fetch: %s", err)
+                return []
             except Exception:
                 offers = []
 
