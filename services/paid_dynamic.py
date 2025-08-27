@@ -51,7 +51,7 @@ def search(
     if not JustWatch:
         return []
 
-    jw = JustWatch(country=country, api_domain="https://apis.justwatch.com")
+    jw = JustWatch(country=country, api_domain="https://apiv2.justwatch.com")
     try:
         data = jw.search_for_item(query=query, content_types=["movie"])
     except requests.exceptions.HTTPError as err:
